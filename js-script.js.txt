@@ -1,0 +1,116 @@
+// Lugares y pistas sencillas
+const lugares = [
+  {nombre:"El Poblado", pista:"Lo vieron cerca de un café."},
+  {nombre:"Laureles", pista:"Estaba cerca de un parque."},
+  {nombre:"Bello", pista:"Caminaba por la calle principal."},
+  {nombre:"Envigado", pista:"Subió a un bus."},
+  {nombre:"Sabaneta", pista:"Se detuvo en un parque pequeño."},
+  {nombre:"Robledo", pista:"Pasó por una tienda de barrio."},
+  {nombre:"Belén", pista:"Caminaba por la avenida principal."},
+  {nombre:"Centro", pista:"Estaba cerca de la Plaza Botero."}
+];
+
+let recorrido = [];
+let paso = 0;
+let mapa, polyline, marcador = null;
+
+// Iniciar nuevo caso
+function nuevoCaso() {
+  recorrido = [];
+  for(let i=0;i<5;i++) {
+    recorrido.push(lugares[Math.floor(Math.random()*lugares.length)]);
+  }
+  paso = 0;
+  document.getElementById("map").style.display = "none";
+  document.getElementById("feedback").innerText = "";
+  mostrarPista();
+}
+
+// Mostrar pista y opciones
+function mostrarPista() {
+  if(paso < recorrido.length) {
+    document.getElementById("pistas").innerText = recorrido[paso].pista;
+    const optionsDiv = document.getElementById("options");
+    optionsDiv.innerHTML = "";
+
+    // 1 correcta + 2 aleatorias
+    let opts = [recorrido[paso].nombre];
+    while(opts.length < 3) {
+      let r = lugares[Math.floor(Math.random()*lugares.length)].nombre;
+      if(!opts.includes(r)) opts.push(r);
+    }
+    opts.sort(()=>Math.random()-0.5);
+
+    opts.forEach(o=>{
+      let btn = document.createElement("button");
+      btn.innerText = o;
+      btn.onclick = ()=>verificar(o);
+      optionsDiv.appendChild(btn);
+    });
+  } else {
+    capturado();
+  }
+}
+
+// Verificar respuesta
+function verificar(opcion) {
+  const feedback = document.getElementById("feedback");
+  if(opcion === recorrido[paso].nombre) {
+    feedback.style.color = "green";
+    feedback.innerText = "🎉 Correcto!";
+    paso++;
+    setTimeout(mostrarPista, 500);
+  } else {
+    feedback.style.color = "red";
+    feedback.innerText = "❌ Incorrecto! Reiniciando caso...";
+    setTimeout(nuevoCaso, 1000);
+  }
+}
+
+// Capturado
+function capturado() {
+  document.getElementById("pistas").innerText = "🏆 ¡Has atrapado al ladrón! Mira su recorrido en el mapa.";
+  document.getElementById("options").innerHTML = "";
+  document.getElementById("feedback").innerText = "";
+  mostrarMapaAnimado();
+}
+
+// Mostrar mapa con animación paso a paso
+function mostrarMapaAnimado() {
+  document.getElementById("map").style.display = "block";
+
+  if(!mapa) {
+    mapa = L.map('map').setView([6.2442, -75.5812], 12);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap'
+    }).addTo(mapa);
+  }
+
+  if(polyline) { mapa.removeLayer(polyline); if(marcador) mapa.removeLayer(marcador); }
+
+  const coords = recorrido.map(l=>{
+    switch(l.nombre){
+      case "El Poblado": return [6.2088,-75.5670];
+      case "Laureles": return [6.2447,-75.6012];
+      case "Bello": return [6.3389,-75.5580];
+      case "Envigado": return [6.1759,-75.5917];
+      case "Sabaneta": return [6.1519,-75.6167];
+      case "Robledo": return [6.2792,-75.6060];
+      case "Belén": return [6.2295,-75.6066];
+      case "Centro": return [6.2530,-75.5646];
+    }
+  });
+
+  polyline = L.polyline([], {color:'red'}).addTo(mapa);
+  marcador = L.marker(coords[0]).addTo(mapa).bindPopup(`Paso 1: ${recorrido[0].nombre}`).openPopup();
+
+  let step = 0;
+  const interval = setInterval(()=>{
+    if(step >= coords.length) { clearInterval(interval); return; }
+    polyline.addLatLng(coords[step]);
+    marcador.setLatLng(coords[step]);
+    marcador.setPopupContent(`Paso ${step+1}: ${recorrido[step].nombre}`).openPopup();
+    step++;
+    mapa.fitBounds(polyline.getBounds());
+  }, 1000);
+}
